@@ -1,0 +1,66 @@
+{
+  // Local development config: `npm run dev` uses this file so the m365-copilot2api_KV
+  // binding resolves to a simulated namespace without a real id.
+  // Production/dashboard deploys use ./wrangler.jsonc (provisioning-friendly,
+  // no id needed there).
+  "name": "m365-copilot2api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+
+  "assets": {
+    "directory": "./assets",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "m365-copilot2api_KV",
+      "id": "local-dev-namespace"
+    }
+  ],
+
+  // Storage review P0-4: mirror the production D1 binding so `npm run dev`
+  // exercises the same D1 code paths (api keys, resolver index, usage events,
+  // cache stats, chat transcripts) instead of silently falling back to KV.
+  // `wrangler dev` provisions the local database automatically; apply the
+  // schema with: npx wrangler d1 migrations apply m365-copilot2api --local
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "m365-copilot2api",
+      "database_id": "local-dev-d1",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Local dev mirrors the production DO bindings so the coordination paths
+  // (lockout / round-robin cursor / concurrency semaphore / refresh mutex)
+  // behave exactly as deployed.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_HUB",
+        "class_name": "McpSessionDO"
+      },
+      {
+        "name": "COORD",
+        "class_name": "CoordinationDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["McpSessionDO"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["CoordinationDO"]
+    }
+  ],
+
+  "triggers": {
+    "crons": ["*/30 * * * *"]
+  }
+}

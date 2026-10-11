@@ -1,0 +1,80 @@
+{
+	// M365-Copilot2API on Cloudflare Workers
+	//
+	// Deploy option A (recommended): fork this repo, then in the Cloudflare
+	// Dashboard go to Workers & Pages -> Create -> Import a repository.
+	// The m365-copilot2api_KV namespace is provisioned and bound automatically on the
+	// first deployment - no manual id copying needed. Afterwards (optional):
+	//   Settings -> Variables -> add secret ADMIN_PASSWORD.
+	//
+	// Deploy option B (CLI): run `npx wrangler kv namespace create m365-copilot2api_KV`,
+	// uncomment and fill in the returned id below, then `npx wrangler deploy`.
+	"name": "m365-copilot2api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-01",
+	"assets": {
+		"directory": "./assets",
+		"binding": "ASSETS",
+		"not_found_handling": "none"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "m365-copilot2api_KV",
+			"id": "64d5839f7a184a27944cb3097c73bf11"
+			// CLI deploys: uncomment and fill in your namespace id:
+			// , "id": "your-kv-namespace-id"
+		}
+	],
+	// D1 (usage events + debug records). Create once:
+	//   npx wrangler d1 create m365-copilot2api
+	//   npx wrangler d1 migrations apply m365-copilot2api --remote
+	// then paste the returned database_id below. Without a binding the app
+	// falls back to legacy KV storage automatically.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "m365-copilot2api",
+			"database_id": "20d9ed27-eea9-4c31-bac9-779bdc413a64",
+			"migrations_dir": "migrations"
+		}
+	],
+	// Durable Objects (MCP cross-isolate sessions + global coordination:
+	// admin-login lockout, account round-robin cursor, per-account concurrency
+	// semaphore, token-refresh mutex). Free plan supported (SQLite-backed
+	// classes). Without the COORD binding every consumer falls back to the
+	// previous isolate-local behavior automatically.
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MCP_HUB",
+				"class_name": "McpSessionDO"
+			},
+			{
+				"name": "COORD",
+				"class_name": "CoordinationDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["McpSessionDO"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["CoordinationDO"]
+		}
+	],
+	"triggers": {
+		"crons": [
+			"*/30 * * * *"
+		]
+	}
+	// Optional vars (all optional; sensible defaults built in):
+	// "vars": {
+	//   "M365_BROWSER_CLIENT_ID": "",
+	//   "M365_BROWSER_AUTHORITY": "",
+	//   "M365_BROWSER_REDIRECT_URI": "",
+	//   "M365_BROWSER_SCOPE": ""
+	// }
+}
